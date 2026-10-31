@@ -1,0 +1,12 @@
+{
+  "name": "calavera",
+  "version": "1.0.0",
+  "description": "A local-first virtual ofrenda builder powered by an open-weight model running on your own machine.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch src/server.ts",
+    "smoke": "bun run scripts/smoke.ts"
+  }
+}

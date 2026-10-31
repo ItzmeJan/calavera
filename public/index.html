@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calavera — a virtual ofrenda</title>
+<meta name="description" content="Build a virtual ofrenda for someone you remember. Runs on a local open-weight model." />
+<style>
+  :root {
+    --night: #14090f;
+    --deep: #24101c;
+    --plum: #3a1526;
+    --marigold: #f2a33c;
+    --ember: #ff7a3d;
+    --bone: #f4e7d8;
+    --muted: #b79aa1;
+    --teal: #4fb3a5;
+    --line: rgba(244, 231, 216, 0.14);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    color: var(--bone);
+    background:
+      radial-gradient(70rem 40rem at 78% -10%, #4a1a28 0%, transparent 60%),
+      radial-gradient(50rem 30rem at 12% 110%, #2a1224 0%, transparent 65%),
+      var(--night);
+    font: 16px/1.6 ui-sans-serif, "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; opacity: .5;
+    background-image: radial-gradient(rgba(255,255,255,.16) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mask-image: radial-gradient(circle at 50% 20%, #000 0%, transparent 70%);
+  }
+  a { color: var(--marigold); }
+
+  .shell {
+    position: relative;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 22px 72px;
+    display: grid;
+    gap: 34px;
+    grid-template-columns: minmax(320px, 400px) 1fr;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } }
+
+  header.brand { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .skull { width: 42px; height: 42px; flex: none; }
+  h1 {
+    margin: 0; font-size: clamp(1.6rem, 3.4vw, 2.4rem); letter-spacing: .01em;
+    font-family: ui-serif, Georgia, "Times New Roman", serif; font-weight: 600;
+  }
+  .tagline { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
+  .model {
+    margin-left: auto; font: 500 .74rem/1 ui-monospace, "Cascadia Code", monospace;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--teal);
+    border: 1px solid rgba(79,179,165,.35); border-radius: 999px;
+    padding: 7px 12px; background: rgba(79,179,165,.07);
+  }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,.015));
+    padding: 24px;
+    backdrop-filter: blur(6px);
+  }
+  .panel h2 { margin: 0 0 4px; font-size: 1.02rem; letter-spacing: .02em; }
+  .panel .hint { margin: 0 0 20px; color: var(--muted); font-size: .86rem; }
+
+  label { display: block; margin: 0 0 14px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  label span { color: var(--marigold); }
+  input[type="text"], textarea {
+    display: block; width: 100%; margin-top: 6px;
+    padding: 11px 13px; font: inherit; font-size: .95rem; text-transform: none; letter-spacing: 0;
+    color: var(--bone); background: rgba(255,255,255,.05);
+    border: 1px solid var(--line); border-radius: 10px; transition: border-color .15s, background .15s;
+  }
+  input[type="text"]:focus, textarea:focus {
+    outline: none; border-color: var(--marigold); background: rgba(255,255,255,.08);
+  }
+  textarea { resize: vertical; min-height: 84px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+
+  button {
+    width: 100%; padding: 13px 18px; margin-top: 6px;
+    font: 600 .95rem/1 inherit; letter-spacing: .02em; color: #2a0f16; cursor: pointer;
+    background: linear-gradient(180deg, #ffc463, var(--marigold));
+    border: none; border-radius: 11px;
+    box-shadow: 0 10px 30px -12px rgba(242,163,60,.9);
+    transition: transform .12s, filter .12s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+  button:disabled { opacity: .55; cursor: progress; }
+
+  .error { margin: 12px 0 0; color: #ff9b8a; font-size: .86rem; white-space: pre-wrap; }
+
+  /* ---------- the altar ---------- */
+  .altar { position: relative; }
+  .altar[hidden] { display: none; }
+  .papel { display: block; width: 100%; height: 44px; margin-bottom: -4px; }
+  .altar-body {
+    position: relative; padding: 34px 30px 150px;
+    border: 1px solid rgba(242,163,60,.22); border-radius: 20px;
+    background:
+      radial-gradient(60% 55% at 50% 24%, rgba(255,122,61,.16), transparent 70%),
+      linear-gradient(180deg, #2a1020 0%, #1c0b14 62%, #150810 100%);
+    overflow: hidden;
+  }
+  .altar-body::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 54px);
+  }
+  .niche { position: relative; z-index: 2; text-align: center; }
+  .plaque {
+    display: inline-block; margin: 0 auto 18px; padding: 12px 26px;
+    font-family: ui-serif, Georgia, serif; font-size: 1.05rem; letter-spacing: .03em;
+    color: #36131c; background: linear-gradient(170deg, #fbf0dd, #e6cfb2);
+    border-radius: 6px; box-shadow: 0 12px 26px -14px #000, inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  .name {
+    margin: 0; font-family: ui-serif, Georgia, serif; font-weight: 600;
+    font-size: clamp(1.7rem, 4.2vw, 2.7rem); line-height: 1.15;
+    color: #ffe6c4; text-shadow: 0 0 40px rgba(242,163,60,.45);
+  }
+  .relation { margin: 4px 0 0; color: var(--marigold); font-size: .82rem; letter-spacing: .16em; text-transform: uppercase; }
+
+  .candles { display: flex; justify-content: center; gap: clamp(16px, 5vw, 46px); margin: 26px 0 22px; }
+  .candle { width: 13px; height: 58px; border-radius: 3px 3px 2px 2px; position: relative;
+    background: linear-gradient(180deg, #fdf3e2, #d9c3a7); box-shadow: inset -3px 0 6px rgba(0,0,0,.22); }
+  .candle::before {
+    content: ""; position: absolute; left: 50%; top: -20px; width: 11px; height: 20px; translate: -50% 0;
+    background: radial-gradient(circle at 50% 72%, #fff6d8 0%, #ffc861 38%, #ff7a3d 72%, transparent 74%);
+    border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+    filter: drop-shadow(0 0 14px rgba(255,140,60,.85));
+    animation: flicker 2.9s ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+  .candle:nth-child(2)::before { animation-delay: -.8s; }
+  .candle:nth-child(3)::before { animation-delay: -1.7s; }
+  @keyframes flicker {
+    0%, 100% { transform: scale(1) rotate(-1.5deg); opacity: .95; }
+    28% { transform: scale(.9, 1.12) rotate(2deg); opacity: 1; }
+    52% { transform: scale(1.06, .94) rotate(-2.5deg); opacity: .86; }
+    76% { transform: scale(.96, 1.05) rotate(1deg); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .candle::before { animation: none; } }
+
+  .remembrance { max-width: 52ch; margin: 0 auto; font-size: 1.02rem; color: #f0dcc9; }
+  .whisper {
+    margin: 20px auto 0; max-width: 40ch; font-family: ui-serif, Georgia, serif; font-style: italic;
+    color: #ffd9a8; opacity: 0; transition: opacity 1.4s ease .3s;
+  }
+  .whisper.show { opacity: 1; }
+
+  .offerings { position: relative; z-index: 2; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
+  .offering {
+    font-size: .78rem; padding: 5px 11px; border-radius: 999px;
+    color: #ffd9a8; border: 1px solid rgba(242,163,60,.35); background: rgba(242,163,60,.08);
+  }
+  .offering.song { border-color: rgba(79,179,165,.4); background: rgba(79,179,165,.09); color: #a9e6dc; }
+
+  .marigolds { position: absolute; left: 0; right: 0; bottom: 26px; height: 96px; z-index: 1; pointer-events: none; }
+  .marigold {
+    position: absolute; width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #ffd08a 0%, var(--marigold) 45%, #c4651f 100%);
+    box-shadow: 0 0 0 5px rgba(242,163,60,.16), 0 0 24px rgba(242,163,60,.45);
+  }
+  .marigold::after {
+    content: ""; position: absolute; inset: 8px; border-radius: 50%;
+    background: #c4651f; opacity: .85;
+  }
+
+  .empty {
+    display: grid; place-items: center; min-height: 420px; text-align: center;
+    border: 1px dashed rgba(244,231,216,.18); border-radius: 20px; color: var(--muted);
+    padding: 30px;
+  }
+  .empty .skull { width: 64px; height: 64px; opacity: .5; margin-bottom: 12px; }
+  .empty p { max-width: 34ch; margin: 0; }
+
+  footer { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; text-align: center; border-top: 1px solid var(--line); padding-top: 18px; }
+  .archives { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .archives span { color: var(--muted); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+  .archives a {
+    font-size: .84rem; text-decoration: none; color: #f0dcc9;
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; background: rgba(255,255,255,.04);
+  }
+  .archives a:hover { border-color: var(--marigold); color: var(--marigold); }
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="brand">
+    <svg class="skull" viewBox="0 0 64 64" aria-hidden="true">
+      <path fill="#f4e7d8" d="M32 4c13 0 22 9.4 22 22.6 0 7-2.8 11.2-2.8 16.2 0 3.6-2 5.2-5.4 5.2h-1.1c-1.4 0-2.3.9-2.3 2.3V56c0 2.4-1.4 3.8-3.8 3.8H25.4C23 59.8 21.6 58.4 21.6 56v-5.7c0-1.4-.9-2.3-2.3-2.3h-1.1c-3.4 0-5.4-1.6-5.4-5.2 0-5-2.8-9.2-2.8-16.2C10 13.4 19 4 32 4Z"/>
+      <ellipse cx="23" cy="28" rx="6" ry="7" fill="#24101c"/>
+      <ellipse cx="41" cy="28" rx="6" ry="7" fill="#24101c"/>
+      <path fill="#24101c" d="M32 34l4.2 7.4h-8.4Z"/>
+      <g fill="#24101c"><rect x="25" y="48" width="3" height="12" rx="1"/><rect x="30.5" y="48" width="3" height="12" rx="1"/><rect x="36" y="48" width="3" height="12" rx="1"/></g>
+    </svg>
+    <div>
+      <h1>Calavera</h1>
+      <p class="tagline">A virtual ofrenda, lit on your own machine.</p>
+    </div>
+    <span class="model" id="model">local model</span>
+  </header>
+
+  <section class="panel">
+    <h2>Who are we remembering?</h2>
+    <p class="hint">A few details are enough. The words are written by an open-weight model running here, never sent to a company's API.</p>
+    <form id="form" autocomplete="off">
+      <div class="row">
+        <label>Name <span>*</span><input type="text" name="name" maxlength="60" required placeholder="Rosa Elena" /></label>
+        <label>Relationship<input type="text" name="relation" maxlength="60" placeholder="my grandmother" /></label>
+      </div>
+      <label>A memory<textarea name="memory" maxlength="600" placeholder="She peeled oranges in one long spiral and left them on the windowsill."></textarea></label>
+      <label>Favourite foods, comma separated<input type="text" name="foods" maxlength="200" placeholder="pan dulce, tamales, café de olla" /></label>
+      <label>A song they loved<input type="text" name="song" maxlength="80" placeholder="Cielito Lindo" /></label>
+      <button type="submit" id="submit">Light the altar</button>
+      <p class="error" id="error" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <div class="altar" id="altar" hidden></div>
+
+  <section class="empty" id="empty">
+    <div>
+      <svg class="skull" viewBox="0 0 64 64" aria-hidden="true">
+        <path fill="#b79aa1" d="M32 4c13 0 22 9.4 22 22.6 0 7-2.8 11.2-2.8 16.2 0 3.6-2 5.2-5.4 5.2h-1.1c-1.4 0-2.3.9-2.3 2.3V56c0 2.4-1.4 3.8-3.8 3.8H25.4C23 59.8 21.6 58.4 21.6 56v-5.7c0-1.4-.9-2.3-2.3-2.3h-1.1c-3.4 0-5.4-1.6-5.4-5.2 0-5-2.8-9.2-2.8-16.2C10 13.4 19 4 32 4Z"/>
+        <ellipse cx="23" cy="28" rx="6" ry="7" fill="#14090f"/><ellipse cx="41" cy="28" rx="6" ry="7" fill="#14090f"/>
+        <path fill="#14090f" d="M32 34l4.2 7.4h-8.4Z"/>
+      </svg>
+      <p>The altar is bare. Tell us about someone, and marigolds will climb the steps.</p>
+    </div>
+  </section>
+
+  <div class="archives" id="archives" hidden></div>
+
+  <footer>
+    Altars are saved as plain JSON in <code>./ofrendas</code> on this computer.
+    Open weights, no account, no telemetry.
+  </footer>
+</main>
+
+<script>
+  const form = document.getElementById("form");
+  const submit = document.getElementById("submit");
+  const error = document.getElementById("error");
+  const altar = document.getElementById("altar");
+  const empty = document.getElementById("empty");
+  const archives = document.getElementById("archives");
+  const model = document.getElementById("model");
+
+  const escape = (value) =>
+    String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+  fetch("/api/health").then((r) => r.json()).then((d) => { model.textContent = d.model; }).catch(() => {});
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const foods = String(data.get("foods") || "")
+      .split(",")
+      .map((food) => food.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const body = {
+      name: data.get("name"),
+      relation: data.get("relation"),
+      memory: data.get("memory"),
+      song: data.get("song"),
+      foods,
+    };
+
+    error.hidden = true;
+    submit.disabled = true;
+    submit.textContent = "The candles are catching…";
+    altar.hidden = true;
+    empty.hidden = true;
+
+    try {
+      const response = await fetch("/api/ofrendas", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "The altar would not light.");
+      render(payload);
+      history.replaceState(null, "", `/?ofrenda=${payload.id}`);
+      loadArchives();
+    } catch (err) {
+      error.textContent = err.message;
+      error.hidden = false;
+      empty.hidden = false;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Light the altar";
+    }
+  });
+
+  function render(ofrenda) {
+    const { memorial, whisper } = ofrenda;
+    const offerings = [
+      ...(memorial.foods || []).map((food) => `<span class="offering">${escape(food)}</span>`),
+      memorial.song ? `<span class="offering song">♪ ${escape(memorial.song)}</span>` : "",
+    ].join("");
+    const marigolds = scatterMarigolds();
+
+    altar.innerHTML = `
+      <svg class="papel" viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true">
+        <path fill="#f2a33c" opacity=".85" d="M0 0h600v14l-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22-12-22-12 22z"/>
+      </svg>
+      <div class="altar-body">
+        <div class="niche">
+          <div class="plaque">${escape(whisper.epitaph)}</div>
+          <h2 class="name">${escape(memorial.name)}</h2>
+          ${memorial.relation ? `<p class="relation">${escape(memorial.relation)}</p>` : ""}
+          <div class="candles"><div class="candle"></div><div class="candle"></div><div class="candle"></div></div>
+          <p class="remembrance">${escape(whisper.remembrance)}</p>
+          <p class="whisper">“${escape(whisper.whisper)}”</p>
+          ${offerings ? `<div class="offerings">${offerings}</div>` : ""}
+        </div>
+        <div class="marigolds">${marigolds}</div>
+      </div>`;
+
+    altar.hidden = false;
+    empty.hidden = true;
+    requestAnimationFrame(() => altar.querySelector(".whisper")?.classList.add("show"));
+  }
+
+  /** Scatters flowers along the altar steps, avoiding the centre text. */
+  function scatterMarigolds() {
+    const COLUMNS = 16;
+    let flowers = "";
+    for (let i = 0; i < COLUMNS; i++) {
+      const left = 3 + (i * 94) / COLUMNS + ((i * 37) % 11) / 6;
+      const bottom = 4 + ((i * 29) % 46);
+      const size = 18 + ((i * 13) % 12);
+      flowers += `<span class="marigold" style="left:${left.toFixed(2)}%;bottom:${bottom}px;width:${size}px;height:${size}px"></span>`;
+    }
+    return flowers;
+  }
+
+  async function loadArchives() {
+    try {
+      const { ofrendas } = await (await fetch("/api/ofrendas")).json();
+      if (!ofrendas.length) { archives.hidden = true; return; }
+      archives.innerHTML = `<span>Kept</span>` + ofrendas
+        .map((o) => `<a href="/?ofrenda=${o.id}">${escape(o.name)}</a>`)
+        .join("");
+      archives.hidden = false;
+    } catch {}
+  }
+
+  const requested = new URLSearchParams(location.search).get("ofrenda");
+  if (requested) {
+    fetch(`/api/ofrendas/${encodeURIComponent(requested)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("No altar there."))))
+      .then((ofrenda) => { render(ofrenda); empty.hidden = true; })
+      .catch(() => {})
+      .finally(loadArchives);
+  } else {
+    loadArchives();
+  }
+</script>
+</body>
+</html>
